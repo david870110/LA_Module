@@ -155,9 +155,11 @@ end
 // 3. fifo_full -> push null packet (issue : use fifo_full - 1 or fifo_count == l_thread)
 
 // --- FIFO Instance -----
-la_fifo
-#( .WIDTH(32)
-    //.DEPTH(128)               // Jiin - use new fifo ip with parameter DEPTH
+fifo
+#( .WIDTH(32),
+    .depth(64),
+    .sram_datawidth(128),
+    .mode(0)               
 )   fifo_inst
 (
     .axis_clk (axis_clk) ,
@@ -167,7 +169,12 @@ la_fifo
     .data_in (trace_packet),
     .r_rdy (m_tready),          // directly connect to axis r_ready
     .r_vld (m_tvalid),          // connect to axis r_valid
-    .data_out (m_tdata)
+    .data_out (m_tdata),
+    .TH_reg(8'd0),
+    .sram_we(),
+    .sram_addr(),
+    .sram_din(),
+    .sram_dout()
 );
 
 // fifo pop & fifo push , m_tvalid is the fifo_empty , trace_push_ok is the fifo_full - JIANG
