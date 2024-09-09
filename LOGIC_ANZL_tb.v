@@ -94,6 +94,7 @@ module LOGIC_ANLZ_tb;
     assign axis_clk = axi_clk;
     assign axis_rst_n = axi_reset_n; 
 
+    //-axi lite control
     always @(posedge axi_clk or negedge axi_reset_n) begin
         if (!axi_reset_n) 
         begin
@@ -143,12 +144,12 @@ module LOGIC_ANLZ_tb;
             end     
             repeat(repeat_cycle) @(posedge axi_clk)
                 up_la_data = generate_data;
-            $display("cycle : %h    data:  %h",repeat_cycle, data);
+            $display("cycle : %h    data:  %h",repeat_cycle, generate_data);
             $display("------------------------------");
         end     
     endtask
 
-    // software program data
+    // software program data(axi-lite)
     task axi_master_write_and_read();
         input [31:0] addr;
         input [31:0] data;
@@ -173,6 +174,8 @@ module LOGIC_ANLZ_tb;
     endtask
 
 
+
+/*
     localparam MAX_COMPRESSED_SIZE = 256;
     reg [31:0] compressed_mem [0:MAX_COMPRESSED_SIZE-1];
     reg [8:0] compressed_index;
@@ -241,9 +244,10 @@ module LOGIC_ANLZ_tb;
                 $display("%d mismatches found.", mismatch_count);
         end
     endtask
-
+*/
     integer test_data;
     integer total_cycles;
+    integer repeat_data;
     initial begin
         axi_clk = 1'b0;
         up_la_data = 24'd0;
@@ -283,9 +287,11 @@ module LOGIC_ANLZ_tb;
         $display("Monitoring started");
 
         repeat (15) @(posedge axi_clk);
-        @(posedge axi_clk)
-        //param(rc_count mode(0 = random) , rc , generate_data data)
-        new_data(1'b1, 6'h1, 24'h0);
+        // - param(rc_count mode(0 = random) , rc , generate_data data)
+        for(repeat_data=0;repeat_data<200;repeat_data=repeat_data+1)begin
+            new_data(1'b1, 6'h1, 24'h0 + repeat_data);
+        end
+/*
         $display("Total cycles: %d", total_cycles);    
 
         @(posedge axi_clk); m_tready=1;
@@ -293,7 +299,7 @@ module LOGIC_ANLZ_tb;
         decompress_data();
         
         compare_data(total_cycles);     
-
+*/
         $finish;
     end
 endmodule
