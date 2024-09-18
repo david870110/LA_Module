@@ -91,8 +91,8 @@ reg [7:0] tx_count;         // count # of transfer
 reg la_hpri_req_o;
 
 
-assign axi_awready  = axi_awvalid & axi_wvalid & enable_la;
-assign axi_wready   = axi_awvalid & axi_wvalid & enable_la;
+assign axi_awready  = axi_awvalid & axi_wvalid;
+assign axi_wready   = axi_awvalid & axi_wvalid;
 
 // axilite read - axi_rdata can be available when axi_arvalid (axi_araddr) is valid
 
@@ -135,8 +135,6 @@ assign la_change = |(la_enable & ( up_la_data != r_la_data));
 //   - when receive null-packet -> generate a cycle of 'x' signals
 //   - generate signal waveforms with non-null packet with rc 
 
-wire[23:0] up_la_data_w; // - input to latch will not delay one cycle -JIANG
-assign up_la_data_w = up_la_data;
 
 always @ ( posedge axi_clk or negedge enable_la) begin  // note: cc_la_enable to reset
     if( !enable_la ) begin
@@ -146,7 +144,7 @@ always @ ( posedge axi_clk or negedge enable_la) begin  // note: cc_la_enable to
         if( !la_change & rc_count != 8'hff)             // signal is not changed
             rc_count <= rc_count + 1;
         else begin
-            r_la_data <= up_la_data_w;
+            r_la_data <= up_la_data;
             rc_count <= 8'h01;
         end
     end 
@@ -159,6 +157,9 @@ end
 // 3. fifo_full -> push null packet (issue : use fifo_full - 1 or fifo_count == l_thread)
 
 // --- FIFO Instance -----
+wire sram_we;
+wire[5:0] sram_addr;
+wire[127:0] sram_din,sram_dout;
 fifo
 #( .WIDTH(32),
     .depth(64),
@@ -175,10 +176,20 @@ fifo
     .r_vld (m_tvalid),          // connect to axis r_valid
     .data_out (m_tdata),
     .TH_reg(8'd0),
-    .sram_we(),
-    .sram_addr(),
-    .sram_din(),
-    .sram_dout()
+    .sram_we(sram_we),
+    .sram_addr(sram_addr),
+    .sram_din(sram_din),
+    .sram_dout(sram_dout)
+);
+SRAM1RW64x128 la_SRAM1RW64x128
+(
+    .CE(axis_clk),
+    .WEB(!sram_we),
+    .OEB(1'b0),
+    .CSB(1'b0),
+    .A(sram_addr),
+    .I(sram_din),
+    .O(sram_dout)
 );
 
 // fifo pop & fifo push , m_tvalid is the fifo_empty , trace_push_ok is the fifo_full - JIANG
