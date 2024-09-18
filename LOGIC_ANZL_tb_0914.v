@@ -233,11 +233,9 @@ endtask
 task generate_trace;
     input [9:0]     rc;
     input [23:0]    signal;
-    reg  status;
     begin
         repeat( rc ) @(posedge axi_clk);
         begin
-            push_trace_mem(signal, status);
             up_la_data <= signal;
         end
     end
@@ -302,9 +300,15 @@ begin
     end
 end
 
+reg enable_la;
+reg signal_status;
+wire [23:0] up_la_signal;
+assign up_la_signal = up_la_data;
 
 always @(posedge axi_clk) 
 begin
+    if(enable_la)
+        push_trace_mem(up_la_signal, signal_status);
     if( m_tvalid & m_tready) 
     begin
         auto_check(m_tdata[31:24],m_tdata[23:0]);
@@ -338,6 +342,7 @@ task auto_check;
     reg status;
     reg[23:0] exp_signal;
     begin
+        tready_ws = rc;
         if(rc == 0) 
             overflow <= 1;
         else
@@ -353,11 +358,11 @@ task auto_check;
                     pop_trace_mem(exp_signal,status);
                     if( exp_signal != signal ) 
                         begin
-                        $display(" ERROR: exp_signal %h != signal %h", exp_signal, signal);
+                        $display(" ERROR: exp_signal %h != signal %h , rc = %h", exp_signal, signal, rc);
                         $stop;
                         end
                     else 
-                        $display("    OK: exp_signal %h == signal %h", exp_signal, signal);
+                        $display("    OK: exp_signal %h == signal %h , rc = %h", exp_signal, signal, rc);
                 end
             end
         end
@@ -368,7 +373,7 @@ endtask
 integer i;
 // --- Test Start Here ------
     initial begin
-        tready_ws = 3;
+        tready_ws = 0;
         axi_clk = 1'b0;
         up_la_data = 24'd0;
         axi_reset_n = 1'b0;
@@ -402,6 +407,7 @@ integer i;
 
         //enable_la <= 1
         configure_write(32'h30001010, 32'h00000001);
+        enable_la <= 1;
 
         // configuration read to check 
         configure_read(32'h3000_1000, 32'h00ffffff, 32'h00ffffff);
