@@ -156,11 +156,9 @@ module LOGIC_ANLZ_tb;
         input [31:0] exp_data;
         input [31:0] vld_bit;
         begin
-
             @(posedge axi_clk);
             axi_arvalid <= 1;
             axi_araddr  <= addr;
-
             fork
                 begin   
                     while( !axi_arready) @(posedge axi_clk);
@@ -267,8 +265,6 @@ reg [9:0]  ws_count; // local variable to count wait-state
 // m_tready _/---\__/---\___
 // ws        1---0--overflow-
 
-reg         fifo_empty_status;
-reg [31:0]  exp_trace;
 always @(posedge axi_clk or negedge axi_reset_n) 
 begin
     if( !axi_reset_n) 
@@ -349,11 +345,18 @@ task auto_check;
         begin
             if(overflow)
             begin
-
+                $display("rc = %h ;  overflow start pop",rc);
+                while( signal != exp_signal )
+                begin
+                    pop_trace_mem(exp_signal,status);
+                end
+                $stop;
+                $display("overflow pop ended");
+                overflow <= 0;
             end
             else
             begin
-                repeat( rc ) @(posedge axi_clk);
+                repeat( rc )
                 begin
                     pop_trace_mem(exp_signal,status);
                     if( exp_signal != signal ) 
@@ -373,7 +376,10 @@ endtask
 integer i;
 // --- Test Start Here ------
     initial begin
-        tready_ws = 0;
+        $dumpfile ("./LA_Module.vcd");
+        $dumpvars (0, LOGIC_ANLZ_tb);
+        $dumpvars (1, LOGIC_ANLZ_tb);
+        tready_ws = 3;
         axi_clk = 1'b0;
         up_la_data = 24'd0;
         axi_reset_n = 1'b0;
@@ -407,7 +413,7 @@ integer i;
 
         //enable_la <= 1
         configure_write(32'h30001010, 32'h00000001);
-        enable_la <= 1;
+        enable_la = 1;
 
         // configuration read to check 
         configure_read(32'h3000_1000, 32'h00ffffff, 32'h00ffffff);
@@ -435,27 +441,42 @@ integer i;
         // 4. random test with different la_enable
 
     // 1. la_enable - only selected signal will be monitored
-    /*
+    
         configure_write(32'h3000_1000, 32'h005a5a5a);       // la_enable
         generate_trace(1, 24'h00005a);
         generate_trace(1, 24'h0000ff);         // signal not monitored
         generate_trace(1, 24'h000055);          // push 5a rc=2
-    */
+    
+    
+
+
+        configure_write(32'h3000_1000, 32'hffffffff);   // la_enable
+    for(i = 0;i<200;i=i+1)
+        generate_trace(1, 24'h000055 + i);
 
     // overflow Test
     //   - need to control m_tready
     //     configuration tready_ws : set larger value
     //  for( tready_ws = 5, 10, 15, 20, 20 .. )
     //   for( 100 trace)
-        configure_write(32'h3000_1000, 32'hffffffff);   // la_enable
-    for(i = 0;i<100;i=i+1)
-        generate_trace(1, 24'h000055 + i);
-
+    tready_ws = 500;
+    for(i = 0;i<200;i=i+1)
+        generate_trace(1, 24'h000000 + i);
+    for(i = 0;i<200;i=i+1)
+        generate_trace(1, 24'h000000 + i);
+    for(i = 0;i<200;i=i+1)
+        generate_trace(1, 24'h000000 + i);
+    for(i = 0;i<200;i=i+1)
+        generate_trace(1, 24'h000000 + i);
+    for(i = 0;i<200;i=i+1)
+        generate_trace(1, 24'h000000 + i);
+    for(i = 0;i<200;i=i+1)
+        generate_trace(1, 24'h000000 + i);
+    
     // 4. random test with different la_enable
     //  for(  random la_enable)   
     //    for( loop 1000 )
 
-        $finish;
     end
 endmodule
     

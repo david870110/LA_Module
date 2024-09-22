@@ -218,7 +218,8 @@ always @ ( posedge axi_clk or negedge enable_la )begin
     end
 
 assign fifo_full_push = ((r_block_push == 1'b1) & (la_hpri_req_o == 1'b0)); // (fifo_full_push == 1'b0 & (la_hpri_req_o == 1'b1) the end of r_block_push
-assign trace_push = (la_change | (rc_count == 8'hff)) & (!r_block_push | fifo_full_push); 
+assign trace_push = ((la_change | (rc_count == 8'hff)) & !r_block_push)  | fifo_full_push; 
+
 assign trace_packet = {32{!fifo_full_push}} & {rc_count, (r_la_data & la_enable)}; 
 
 assign la_hpri_req = la_hpri_req_o;
