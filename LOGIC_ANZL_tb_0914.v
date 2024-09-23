@@ -193,6 +193,13 @@ begin
     dptr = 0;
 end
 
+task reset_fifo;
+    begin
+    wptr = 0;
+    rptr = 0;
+    dptr = 0;
+    end
+endtask
 // task: push_trace_mem
 task push_trace_mem;
     input [31:0] trace;
@@ -304,11 +311,13 @@ assign up_la_signal = up_la_data;
 always @(posedge axi_clk) 
 begin
     if(enable_la)
+        begin
         push_trace_mem(up_la_signal, signal_status);
-    if( m_tvalid & m_tready) 
-    begin
-        auto_check(m_tdata[31:24],m_tdata[23:0]);
-    end
+        if( m_tvalid & m_tready) 
+        begin
+            auto_check(m_tdata[31:24],m_tdata[23:0]);
+        end
+        end
 end
 
 
@@ -345,13 +354,13 @@ task auto_check;
         begin
             if(overflow)
             begin
-                $display("rc = %h ;  overflow start pop",rc);
+                $display("     rc = %h  -----overflow start pop",rc);
                 while( signal != exp_signal )
                 begin
                     pop_trace_mem(exp_signal,status);
                 end
                 $stop;
-                $display("overflow pop ended");
+                $display(" signal = %h  -----overflow pop ended",signal);
                 overflow <= 0;
             end
             else
@@ -373,13 +382,13 @@ task auto_check;
 endtask 
 
 //--------------------------------------------------------------------------------------------------
-integer i;
+integer i,j;
 // --- Test Start Here ------
-    initial begin
+    initial 
+    begin
         $dumpfile ("./LA_Module.vcd");
         $dumpvars (0, LOGIC_ANLZ_tb);
         $dumpvars (1, LOGIC_ANLZ_tb);
-        tready_ws = 3;
         axi_clk = 1'b0;
         up_la_data = 24'd0;
         axi_reset_n = 1'b0;
@@ -417,19 +426,6 @@ integer i;
 
         // configuration read to check 
         configure_read(32'h3000_1000, 32'h00ffffff, 32'h00ffffff);
-/*
-        //h_thresh <= 7'h3F;
-        configure_write(32'h30001004, 32'h0000003F, 32'h000000ff);
-        
-        //l_thresh <= 7'h3F;
-        configure_write(32'h30001008, 32'h0000003F, 32'h000000ff);
-
-        //pop_cond <= 7'h3F;
-        configure_write(32'h3000100C, 32'h0000003F, 32'h000000ff);
-
-        //enable_la <= 1
-        configure_write(32'h30001010, 32'h00000001, 32'h00000001);
-*/
 
         repeat (5) @(posedge axi_clk);
         $display("Monitoring started");
@@ -440,45 +436,45 @@ integer i;
         // 3. overflow
         // 4. random test with different la_enable
 
-    // 1. la_enable - only selected signal will be monitored
     
+    // 1. la_enable - only selected signal will be monitored (PASS)
         configure_write(32'h3000_1000, 32'h005a5a5a);       // la_enable
         generate_trace(1, 24'h00005a);
         generate_trace(1, 24'h0000ff);         // signal not monitored
         generate_trace(1, 24'h000055);          // push 5a rc=2
-    
-    
-
-
+    // 2. Basic task (PASS)
+        tready_ws = 3;
         configure_write(32'h3000_1000, 32'hffffffff);   // la_enable
-    for(i = 0;i<200;i=i+1)
-        generate_trace(1, 24'h000055 + i);
-
-    // overflow Test
+        for(i = 0;i<200;i=i+1)
+            generate_trace(1, 24'h000055 + i);
+    // 3. Reset enable_la task (PASS)
+        $display("Restarte , enable = 0");
+        configure_write(32'h30001010, 32'h00000000); //
+        enable_la = 0;
+        reset_fifo;
+        repeat (5) @(posedge axi_clk);
+        configure_write(32'h30001010, 32'h00000001); //
+        enable_la = 1;
+        $display("Restarte , enable = 1");
+    // 4. overflow Test
     //   - need to control m_tready
     //     configuration tready_ws : set larger value
     //  for( tready_ws = 5, 10, 15, 20, 20 .. )
     //   for( 100 trace)
-    tready_ws = 500;
-    for(i = 0;i<200;i=i+1)
-        generate_trace(1, 24'h000000 + i);
-    for(i = 0;i<200;i=i+1)
-        generate_trace(1, 24'h000000 + i);
-    for(i = 0;i<200;i=i+1)
-        generate_trace(1, 24'h000000 + i);
-    for(i = 0;i<200;i=i+1)
-        generate_trace(1, 24'h000000 + i);
-    for(i = 0;i<200;i=i+1)
-        generate_trace(1, 24'h000000 + i);
-    for(i = 0;i<200;i=i+1)
-        generate_trace(1, 24'h000000 + i);
-    
-    // 4. random test with different la_enable
+        /*for(i = 0; i < 20; i = i+1)
+        begin
+            tready_ws = i*5;
+            for(j = 0; j < 100; j = j+1)
+                generate_trace(1, 24'h000000 + j * i);
+        end*/
+
+    // 5. random test with different la_enable (PASS)
     //  for(  random la_enable)   
     //    for( loop 1000 )
+        for(j = 0; j < 100; j = j+1)
+            generate_trace({$random} % 400, 24'h000000 + {$random} % 24'hFFFFFF);
 
+        repeat (1000) @(posedge axi_clk);
+        $finish;
     end
 endmodule
-    
-
-        
