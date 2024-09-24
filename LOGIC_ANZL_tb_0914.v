@@ -437,17 +437,17 @@ integer i,j;
         // 4. random test with different la_enable
 
     
-    // 1. la_enable - only selected signal will be monitored (PASS)
+    // 1. la_enable - only selected signal will be monitored (PASS) ---JIANG
         configure_write(32'h3000_1000, 32'h005a5a5a);       // la_enable
         generate_trace(1, 24'h00005a);
         generate_trace(1, 24'h0000ff);         // signal not monitored
         generate_trace(1, 24'h000055);          // push 5a rc=2
-    // 2. Basic task (PASS)
+    // 2. Basic task (PASS) ---JIANG
         tready_ws = 3;
         configure_write(32'h3000_1000, 32'hffffffff);   // la_enable
         for(i = 0;i<200;i=i+1)
             generate_trace(1, 24'h000055 + i);
-    // 3. Reset enable_la task (PASS)
+    // 3. Reset enable_la task (PASS) ---JIANG
         $display("Restarte , enable = 0");
         configure_write(32'h30001010, 32'h00000000); //
         enable_la = 0;
@@ -456,25 +456,31 @@ integer i,j;
         configure_write(32'h30001010, 32'h00000001); //
         enable_la = 1;
         $display("Restarte , enable = 1");
-    // 4. overflow Test
+    // 4. overflow Test ---JIANG
     //   - need to control m_tready
     //     configuration tready_ws : set larger value
     //  for( tready_ws = 5, 10, 15, 20, 20 .. )
     //   for( 100 trace)
-        /*for(i = 0; i < 20; i = i+1)
+        for(i = 0; i < 500; i = i+1)
         begin
-            tready_ws = i*5;
-            for(j = 0; j < 100; j = j+1)
-                generate_trace(1, 24'h000000 + j * i);
-        end*/
+            tready_ws = ({$random} % 10) + 5;
+            generate_trace({$random} % 3, {$random} % 24'hFFFFFF);
+        end
 
-    // 5. random test with different la_enable (PASS)
+    // 5. random test with different la_enable (PASS) ---JIANG
     //  for(  random la_enable)   
     //    for( loop 1000 )
-        for(j = 0; j < 100; j = j+1)
-            generate_trace({$random} % 400, 24'h000000 + {$random} % 24'hFFFFFF);
-
+        for(j = 0; j < 1000; j = j+1)
+            if({$random} % 1) 
+                generate_trace(({$random} % 8'b1111_1111) + 'd256 , {$random} % 24'hFFFFFF);
+            else 
+                generate_trace( ({$random} % 8'b1111_1111) , {$random} % 24'hFFFFFF);
         repeat (1000) @(posedge axi_clk);
         $finish;
     end
+
+    /********** final : generate configuration signal trace packet 
+    and use python to generate .vcd file
+    and compare the vivado simulation waveform ---JIANG
+    **********/
 endmodule
